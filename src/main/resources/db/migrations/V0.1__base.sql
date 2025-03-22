@@ -1,0 +1,35 @@
+CREATE TABLE users(
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE products(
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description VARCHAR(4000),
+    stock_quantity INT NOT NULL
+);
+
+CREATE TABLE orders(
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255),
+    description VARCHAR(4000),
+    user_id SMALLINT UNSIGNED NOT NULL,
+    creation_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    order_status VARCHAR(25),
+
+    CONSTRAINT order_user_fk
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE TABLE order_items(
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    order_id SMALLINT UNSIGNED NOT NULL,
+    product_id SMALLINT UNSIGNED NOT NULL,
+    quantity INT NOT NULL,
+
+    CONSTRAINT order_item_fk FOREIGN KEY (order_id) REFERENCES orders(id),
+    CONSTRAINT order_product_fk FOREIGN KEY (product_id) REFERENCES products(id)
+);
