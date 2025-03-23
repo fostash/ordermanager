@@ -1,11 +1,11 @@
 package org.fbonacina.customerorders.utils;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.UUID;
-import org.fbonacina.customerorders.model.Order;
-import org.fbonacina.customerorders.model.OrderStatus;
-import org.fbonacina.customerorders.model.Product;
-import org.fbonacina.customerorders.model.User;
+import org.fbonacina.customerorders.model.*;
 
 public interface DataFixture {
 
@@ -25,6 +25,9 @@ public interface DataFixture {
         .firstName("firstname-%s".formatted(uuid))
         .lastName("lastname-%s".formatted(uuid))
         .email("mail-%s@test.it".formatted(uuid))
+        .username("username-%s".formatted(uuid))
+        .password("password")
+        .role("user")
         .build();
   }
 
@@ -37,5 +40,19 @@ public interface DataFixture {
         .description("order-description-%s".formatted(uuid))
         .status(OrderStatus.NEW)
         .build();
+  }
+
+  default OrderItem createOrderItem(Product product, Order order, long quantity) {
+    return OrderItem.builder().product(product).order(order).quantity(quantity).build();
+  }
+
+  default String asJsonString(final Object obj) {
+    try {
+      return new ObjectMapper()
+          .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+          .writeValueAsString(obj);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }

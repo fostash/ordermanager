@@ -22,10 +22,6 @@ public class Order {
   private String name;
   private String description;
 
-  // @ManyToOne
-  // @JoinColumn(name = "userId")
-  // private User user;
-
   @Column(name = "user_id")
   private Long userId;
 

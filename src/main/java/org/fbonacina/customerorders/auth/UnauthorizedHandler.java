@@ -1,0 +1,24 @@
+/*
+ * Copyright 2024 Eligo eVoting
+ *
+ */
+package org.fbonacina.customerorders.auth;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.stereotype.Component;
+
+@Component
+public class UnauthorizedHandler implements AuthenticationEntryPoint {
+  @Override
+  public void commence(
+      HttpServletRequest request,
+      HttpServletResponse response,
+      AuthenticationException authException)
+      throws IOException {
+    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
+  }
+}
