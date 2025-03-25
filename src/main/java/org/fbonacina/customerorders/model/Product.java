@@ -23,7 +23,7 @@ public class Product {
   private String description;
 
   @Column(name = "stock_quantity", nullable = false)
-  private int stockQuantity;
+  private Integer stockQuantity;
 
   @Version private Integer version;
 }

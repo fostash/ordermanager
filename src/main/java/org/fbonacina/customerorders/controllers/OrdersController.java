@@ -1,8 +1,11 @@
 package org.fbonacina.customerorders.controllers;
 
+import java.time.LocalDate;
 import java.util.List;
+import org.fbonacina.customerorders.dto.AddProduct;
 import org.fbonacina.customerorders.dto.NewOrder;
 import org.fbonacina.customerorders.model.Order;
+import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.services.OrderService;
 import org.fbonacina.customerorders.services.UserService;
 import org.springframework.http.ResponseEntity;
@@ -46,15 +49,33 @@ public class OrdersController {
         .findById(userId)
         .map(user -> orderService.createOrder(newOrder, user))
         .map(
-            orderId ->
+            orderItemId ->
                 ResponseEntity.created(
                         ServletUriComponentsBuilder.fromCurrentContextPath()
                             .path("/api/v1/orders/{id}")
-                            .buildAndExpand(orderId)
+                            .buildAndExpand(orderItemId)
                             .toUri())
                     .<String>build())
         .orElseThrow();
   }
 
-  public void addProductToOrder(@PathVariable Long orderId) {}
+  @PreAuthorize("isAuthenticated()")
+  @GetMapping()
+  public List<Order> searchOrder(
+      @RequestParam("dateFrom") LocalDate dateFrom,
+      @RequestParam("dateTo") LocalDate dateTo,
+      @RequestParam("username") String username,
+      @RequestParam("ordername") String ordername) {
+    return orderService.searchOrder(dateFrom, dateTo, username, ordername);
+  }
+
+  @PreAuthorize("isAuthenticated()")
+  @PostMapping("/{orderId}/items")
+  public ResponseEntity<OrderItem> addProductToOrder(
+      @PathVariable Long orderId, @RequestBody AddProduct product) {
+    return orderService
+        .addProduct(product.userId(), product.productId(), orderId, product.quantity())
+        .map(orderItem -> ResponseEntity.accepted().body(orderItem))
+        .orElseThrow();
+  }
 }

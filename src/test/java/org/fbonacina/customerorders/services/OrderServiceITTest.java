@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.time.LocalDate;
+import java.util.stream.IntStream;
 import org.fbonacina.customerorders.dto.NewOrder;
 import org.fbonacina.customerorders.exceptions.OrderException;
 import org.fbonacina.customerorders.model.User;
@@ -139,5 +141,63 @@ class OrderServiceITTest implements BaseITTest, DataFixture {
             () -> orderService.addProduct(userData.getId(), productId, orderId, quantityRequested));
 
     assertEquals(ex.getMessage(), "product.quantity-not-enough");
+  }
+
+  @Test
+  public void orderSearchTest() {
+    var productData1 = productRepository.save(createProduct(10));
+
+    var userData1 = userRepository.save(createUser());
+    var userData2 = userRepository.save(createUser());
+
+    IntStream.range(0, 4)
+        .forEach(
+            idx -> orderRepository.save(createOrder(userData1, LocalDate.of(2000, 12, 12), "old")));
+
+    IntStream.range(0, 4)
+        .forEach(
+            idx -> {
+              if (idx % 2 == 0) {
+                var orderData =
+                    orderRepository.save(createOrder(userData1, LocalDate.of(2005, 12, 12), "old"));
+                orderItemRepository.save(createOrderItem(productData1, orderData, 2));
+              } else {
+                var orderData =
+                    orderRepository.save(
+                        createOrder(userData2, LocalDate.of(2010, 12, 12), "morerecent"));
+                orderItemRepository.save(createOrderItem(productData1, orderData, 2));
+              }
+            });
+
+    IntStream.range(0, 4)
+        .forEach(
+            idx -> {
+              if (idx % 2 == 0) {
+                var orderData =
+                    orderRepository.save(createOrder(userData1, LocalDate.of(2005, 12, 12), "old"));
+                orderItemRepository.save(createOrderItem(productData1, orderData, 2));
+              } else {
+                var orderData =
+                    orderRepository.save(createOrder(userData2, LocalDate.now(), "actual"));
+                orderItemRepository.save(createOrderItem(productData1, orderData, 2));
+              }
+            });
+
+    var resSearchByOrderName = orderService.searchOrder(null, null, null, "old");
+    assertThat(resSearchByOrderName.size()).isEqualTo(8);
+
+    var resSearchDateFrom =
+        orderService.searchOrder(LocalDate.now(), null, userData2.getUsername(), null);
+    assertThat(resSearchDateFrom.size()).isEqualTo(2);
+
+    var resSearchDateToActual = orderService.searchOrder(null, LocalDate.now(), null, "actual");
+    assertThat(resSearchDateToActual.size()).isEqualTo(2);
+
+    var resSearchDateFromAndName = orderService.searchOrder(LocalDate.now(), null, null, "old");
+    assertThat(resSearchDateFromAndName.size()).isEqualTo(0);
+
+    var resSearchDateFromTo =
+        orderService.searchOrder(LocalDate.now(), LocalDate.now(), null, null);
+    assertThat(resSearchDateFromTo.size()).isEqualTo(2);
   }
 }

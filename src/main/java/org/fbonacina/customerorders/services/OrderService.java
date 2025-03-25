@@ -1,5 +1,6 @@
 package org.fbonacina.customerorders.services;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.fbonacina.customerorders.dto.NewOrder;
@@ -15,4 +16,8 @@ public interface OrderService {
   Optional<Order> readOrderDetails(Long id);
 
   List<Order> readUserOrders(Long userId);
+
+  Boolean removeProduct(Long orderItemId);
+
+  List<Order> searchOrder(LocalDate dateFrom, LocalDate dateTo, String username, String ordername);
 }

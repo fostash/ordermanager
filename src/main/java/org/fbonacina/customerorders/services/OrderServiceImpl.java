@@ -10,8 +10,10 @@ import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.model.User;
 import org.fbonacina.customerorders.repositories.OrderItemRepository;
 import org.fbonacina.customerorders.repositories.OrderRepository;
+import org.fbonacina.customerorders.repositories.OrderSpecification;
 import org.fbonacina.customerorders.repositories.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -50,7 +52,7 @@ public class OrderServiceImpl implements OrderService {
           orderRepository.save(
               Order.builder()
                   .name(newOrder.name())
-                  .userId(user.getId())
+                  .user(user)
                   .description(newOrder.description())
                   .orderDate(LocalDate.now())
                   .build());
@@ -83,7 +85,7 @@ public class OrderServiceImpl implements OrderService {
                                           OrderItem.builder()
                                               .order(order)
                                               .product(product)
-                                              .quantity(0L)
+                                              .quantity(0)
                                               .build()))
                               .map(
                                   orderItem -> {
@@ -95,5 +97,31 @@ public class OrderServiceImpl implements OrderService {
                                     return orderItemRepository.save(orderItem);
                                   }));
             });
+  }
+
+  @Override
+  @Transactional
+  public Boolean removeProduct(Long orderItemId) {
+    return orderItemRepository
+        .findById(orderItemId)
+        .map(
+            orderItem -> {
+              var product = orderItem.getProduct();
+              product.setStockQuantity(product.getStockQuantity() + orderItem.getQuantity());
+              productRepository.save(product);
+              orderItemRepository.delete(orderItem);
+              return true;
+            })
+        .orElse(false);
+  }
+
+  @Override
+  public List<Order> searchOrder(
+      LocalDate dateFrom, LocalDate dateTo, String username, String ordername) {
+    Specification<Order> spec =
+        OrderSpecification.orderDateBetween(dateFrom, dateTo)
+            .and(OrderSpecification.filterOrderName(ordername))
+            .and(OrderSpecification.filterUserName(username));
+    return orderRepository.findAll(spec);
   }
 }

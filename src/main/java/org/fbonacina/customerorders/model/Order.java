@@ -22,8 +22,9 @@ public class Order {
   private String name;
   private String description;
 
-  @Column(name = "user_id")
-  private Long userId;
+  @ManyToOne
+  @JoinColumn(name = "user_id")
+  private User user;
 
   @Column(name = "creation_date", nullable = false)
   private LocalDate orderDate;

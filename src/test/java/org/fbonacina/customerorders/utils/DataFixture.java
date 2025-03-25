@@ -32,17 +32,21 @@ public interface DataFixture {
   }
 
   default Order createOrder(User user) {
+    return createOrder(user, LocalDate.now(), "order");
+  }
+
+  default Order createOrder(User user, LocalDate orderDate, String searchBy) {
     var uuid = UUID.randomUUID().toString();
     return Order.builder()
-        .orderDate(LocalDate.now())
-        .userId(user.getId())
-        .name("order-%s".formatted(uuid))
+        .orderDate(orderDate)
+        .user(user)
+        .name("%s-%s".formatted(searchBy, uuid))
         .description("order-description-%s".formatted(uuid))
         .status(OrderStatus.NEW)
         .build();
   }
 
-  default OrderItem createOrderItem(Product product, Order order, long quantity) {
+  default OrderItem createOrderItem(Product product, Order order, int quantity) {
     return OrderItem.builder().product(product).order(order).quantity(quantity).build();
   }
 

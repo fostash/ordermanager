@@ -2,19 +2,21 @@ package org.fbonacina.customerorders.controllers;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.securityContext;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.fbonacina.customerorders.dto.AddProduct;
 import org.fbonacina.customerorders.dto.NewOrder;
 import org.fbonacina.customerorders.model.Order;
+import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.services.JwtService;
 import org.fbonacina.customerorders.services.OrderService;
 import org.fbonacina.customerorders.services.UserService;
@@ -87,13 +89,27 @@ class OrdersControllerTest implements JwtBuilder, DataFixture {
     this.mockMvc
         .perform(
             put("/api/v1/orders/user/1")
-                // .with(securityContext(createSecurityContext()))
+                .with(securityContext(createSecurityContext()))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(orderData))
-                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER")))
+                .content(asJsonString(orderData)))
         .andExpect(status().isCreated());
   }
 
   @Test
-  void addProductToOrderTest() {}
+  void addProductToOrderTest() throws Exception {
+
+    var addProduct = AddProduct.builder().productId(1L).userId(1L).quantity(5);
+    when(orderService.addProduct(anyLong(), anyLong(), anyLong(), anyInt()))
+        .thenReturn(Optional.of(OrderItem.builder().build()));
+
+    this.mockMvc
+        .perform(
+            post("/api/v1/orders/1/items")
+                .with(securityContext(createSecurityContext()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(addProduct)))
+        .andExpect(status().isAccepted());
+
+    verify(orderService).addProduct(1L, 1L, 1L, 5);
+  }
 }

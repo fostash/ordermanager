@@ -24,10 +24,9 @@ class OrderServiceUTest {
         new OrderServiceImpl(orderRepositoryMock, productRepositoryMock, orderItemRepositoryMock);
 
     var testProduct = Product.builder().id(1L).name("test product").stockQuantity(10).build();
-    // var updatedProduct = Product.builder().id(1L).name("test product").stockQuantity(0).build();
     var testOrder = Optional.of(Order.builder().id(1L).name("test order").build());
     var testItem =
-        OrderItem.builder().id(1L).product(testProduct).order(testOrder.get()).quantity(0L).build();
+        OrderItem.builder().id(1L).product(testProduct).order(testOrder.get()).quantity(0).build();
     when(productRepositoryMock.findById(anyLong())).thenReturn(Optional.of(testProduct));
     when(orderRepositoryMock.findById(anyLong())).thenReturn(testOrder);
     when(orderItemRepositoryMock.findByOrderIdAndProductId(anyLong(), anyLong()))
