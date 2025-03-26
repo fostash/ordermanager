@@ -25,6 +25,12 @@ public class JwtAuthFilter implements Filter {
       throws IOException, ServletException {
 
     var request = (HttpServletRequest) req;
+
+    if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+      chain.doFilter(req, res);
+      return;
+    }
+
     var authHeader = request.getHeader("Authorization");
 
     if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -46,10 +52,6 @@ public class JwtAuthFilter implements Filter {
             .sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid Authorization header");
         return;
       }
-    } else {
-      ((HttpServletResponse) res)
-          .sendError(HttpServletResponse.SC_UNAUTHORIZED, "Missing Authorization header");
-      return;
     }
 
     chain.doFilter(req, res);

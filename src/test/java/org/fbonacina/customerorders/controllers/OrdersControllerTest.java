@@ -19,8 +19,8 @@ import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.services.JwtService;
 import org.fbonacina.customerorders.services.OrderService;
 import org.fbonacina.customerorders.services.UserService;
+import org.fbonacina.customerorders.utils.BaseITTest;
 import org.fbonacina.customerorders.utils.DataFixture;
-import org.fbonacina.customerorders.utils.JwtBuilder;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,12 +29,14 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest
+@Testcontainers
 @AutoConfigureMockMvc
 @Slf4j
 @ActiveProfiles("utest")
-class OrdersControllerTest implements JwtBuilder, DataFixture {
+class OrdersControllerTest implements BaseITTest, DataFixture {
 
   @Autowired private MockMvc mockMvc;
 
@@ -98,7 +100,7 @@ class OrdersControllerTest implements JwtBuilder, DataFixture {
     var orderData =
         NewOrderDto.builder().name("new-test-order").description("new-test-order-descr").build();
     when(userService.findById(anyLong())).thenReturn(Optional.of(user));
-    when(orderService.createOrder(orderData, user)).thenReturn(1L);
+    when(orderService.createOrder(orderData, user)).thenReturn(Order.builder().id(1L).build());
 
     this.mockMvc
         .perform(

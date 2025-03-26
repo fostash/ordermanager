@@ -1,6 +1,5 @@
 package org.fbonacina.customerorders.auth;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,23 +15,22 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
   private final JwtAuthFilter jwtAuthFilter;
-  @Autowired private UnauthorizedHandler unauthorizedHandler;
+  private final UnauthorizedHandler unauthorizedHandler;
 
-  public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+  public SecurityConfig(JwtAuthFilter jwtAuthFilter, UnauthorizedHandler unauthorizedHandler) {
     this.jwtAuthFilter = jwtAuthFilter;
+    this.unauthorizedHandler = unauthorizedHandler;
   }
 
   @Bean
-  public SecurityFilterChain jwtFilter(HttpSecurity http) throws Exception {
-    return http.securityMatcher("/**")
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http.csrf(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(
-            authorize ->
-                authorize
-                    .requestMatchers("/auth/**")
+            auth ->
+                auth.requestMatchers("/auth/login")
                     .permitAll()
-                    .requestMatchers("/api/**")
+                    .requestMatchers("/api/v1/**")
                     .authenticated())
-        .csrf(AbstractHttpConfigurer::disable)
         .exceptionHandling(configurer -> configurer.authenticationEntryPoint(unauthorizedHandler))
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
         .build();
