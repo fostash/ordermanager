@@ -3,7 +3,7 @@ package org.fbonacina.customerorders.services;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import org.fbonacina.customerorders.dto.NewOrder;
+import org.fbonacina.customerorders.dto.NewOrderDto;
 import org.fbonacina.customerorders.exceptions.OrderException;
 import org.fbonacina.customerorders.model.Order;
 import org.fbonacina.customerorders.model.OrderItem;
@@ -46,7 +46,7 @@ public class OrderServiceImpl implements OrderService {
   }
 
   @Transactional
-  public Long createOrder(NewOrder newOrder, User user) {
+  public Long createOrder(NewOrderDto newOrder, User user) {
     try {
       var order =
           orderRepository.save(

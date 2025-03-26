@@ -43,10 +43,13 @@ public class JwtAuthFilter implements Filter {
         SecurityContextHolder.getContext().setAuthentication(auth);
       } else {
         ((HttpServletResponse) res)
-            .sendError(
-                HttpServletResponse.SC_UNAUTHORIZED, "Missing or invalid Authorization header");
+            .sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid Authorization header");
         return;
       }
+    } else {
+      ((HttpServletResponse) res)
+          .sendError(HttpServletResponse.SC_UNAUTHORIZED, "Missing Authorization header");
+      return;
     }
 
     chain.doFilter(req, res);

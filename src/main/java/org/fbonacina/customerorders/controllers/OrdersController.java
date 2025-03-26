@@ -2,8 +2,8 @@ package org.fbonacina.customerorders.controllers;
 
 import java.time.LocalDate;
 import java.util.List;
-import org.fbonacina.customerorders.dto.AddProduct;
-import org.fbonacina.customerorders.dto.NewOrder;
+import org.fbonacina.customerorders.dto.AddProductDto;
+import org.fbonacina.customerorders.dto.NewOrderDto;
 import org.fbonacina.customerorders.model.Order;
 import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.services.OrderService;
@@ -36,14 +36,18 @@ public class OrdersController {
 
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/user/{userId}")
-  public List<Order> readUserOrder(@PathVariable Long userId) {
-    return orderService.readUserOrders(userId);
+  public ResponseEntity<List<Order>> readUserOrder(@PathVariable Long userId) {
+    try {
+      return ResponseEntity.ok().body(orderService.readUserOrders(userId));
+    } catch (RuntimeException e) {
+      return ResponseEntity.internalServerError().build();
+    }
   }
 
   @PreAuthorize("isAuthenticated()")
   @PutMapping("/user/{userId}")
   public ResponseEntity<String> createOrder(
-      @PathVariable Long userId, @RequestBody NewOrder newOrder) {
+      @PathVariable Long userId, @RequestBody NewOrderDto newOrder) {
 
     return userService
         .findById(userId)
@@ -72,7 +76,7 @@ public class OrdersController {
   @PreAuthorize("isAuthenticated()")
   @PostMapping("/{orderId}/items")
   public ResponseEntity<OrderItem> addProductToOrder(
-      @PathVariable Long orderId, @RequestBody AddProduct product) {
+      @PathVariable Long orderId, @RequestBody AddProductDto product) {
     return orderService
         .addProduct(product.userId(), product.productId(), orderId, product.quantity())
         .map(orderItem -> ResponseEntity.accepted().body(orderItem))

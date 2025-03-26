@@ -5,7 +5,6 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.securityContext;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,8 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.fbonacina.customerorders.dto.AddProduct;
-import org.fbonacina.customerorders.dto.NewOrder;
+import org.fbonacina.customerorders.dto.AddProductDto;
+import org.fbonacina.customerorders.dto.NewOrderDto;
 import org.fbonacina.customerorders.model.Order;
 import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.services.JwtService;
@@ -53,7 +52,9 @@ class OrdersControllerTest implements JwtBuilder, DataFixture {
         .thenReturn(Optional.of(Order.builder().id(1L).name("test").description("test").build()));
 
     this.mockMvc
-        .perform(get("/api/v1/orders/1").with(securityContext(createSecurityContext())))
+        .perform(
+            get("/api/v1/orders/1")
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1))
         .andExpect(jsonPath("$.name").value("test"))
@@ -70,7 +71,9 @@ class OrdersControllerTest implements JwtBuilder, DataFixture {
         .thenReturn(List.of(createOrder(user), createOrder(user), createOrder(user)));
 
     this.mockMvc
-        .perform(get("/api/v1/orders/user/1").with(securityContext(createSecurityContext())))
+        .perform(
+            get("/api/v1/orders/user/1")
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$", hasSize(3)))
         .andExpect(jsonPath("$[0].name", startsWith("order-")))
@@ -78,18 +81,29 @@ class OrdersControllerTest implements JwtBuilder, DataFixture {
   }
 
   @Test
+  void readUserOrderTestFailure() throws Exception {
+    when(orderService.readUserOrders(anyLong())).thenThrow(RuntimeException.class);
+
+    this.mockMvc
+        .perform(
+            get("/api/v1/orders/user/1")
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER")))
+        .andExpect(status().isInternalServerError());
+  }
+
+  @Test
   void createOrderTest() throws Exception {
 
     var user = createUser();
     var orderData =
-        NewOrder.builder().name("new-test-order").description("new-test-order-descr").build();
+        NewOrderDto.builder().name("new-test-order").description("new-test-order-descr").build();
     when(userService.findById(anyLong())).thenReturn(Optional.of(user));
     when(orderService.createOrder(orderData, user)).thenReturn(1L);
 
     this.mockMvc
         .perform(
             put("/api/v1/orders/user/1")
-                .with(securityContext(createSecurityContext()))
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(orderData)))
         .andExpect(status().isCreated());
@@ -98,18 +112,21 @@ class OrdersControllerTest implements JwtBuilder, DataFixture {
   @Test
   void addProductToOrderTest() throws Exception {
 
-    var addProduct = AddProduct.builder().productId(1L).userId(1L).quantity(5);
+    var addProduct = AddProductDto.builder().productId(1L).userId(1L).quantity(5);
     when(orderService.addProduct(anyLong(), anyLong(), anyLong(), anyInt()))
         .thenReturn(Optional.of(OrderItem.builder().build()));
 
     this.mockMvc
         .perform(
             post("/api/v1/orders/1/items")
-                .with(securityContext(createSecurityContext()))
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(addProduct)))
         .andExpect(status().isAccepted());
 
     verify(orderService).addProduct(1L, 1L, 1L, 5);
   }
+
+  @Test
+  public void searchForOrders() {}
 }

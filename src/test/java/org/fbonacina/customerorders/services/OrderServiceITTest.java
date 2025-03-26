@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.LocalDate;
 import java.util.stream.IntStream;
-import org.fbonacina.customerorders.dto.NewOrder;
+import org.fbonacina.customerorders.dto.NewOrderDto;
 import org.fbonacina.customerorders.exceptions.OrderException;
 import org.fbonacina.customerorders.model.User;
 import org.fbonacina.customerorders.repositories.OrderItemRepository;
@@ -15,6 +15,7 @@ import org.fbonacina.customerorders.repositories.ProductRepository;
 import org.fbonacina.customerorders.repositories.UserRepository;
 import org.fbonacina.customerorders.utils.BaseITTest;
 import org.fbonacina.customerorders.utils.DataFixture;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,20 +36,28 @@ class OrderServiceITTest implements BaseITTest, DataFixture {
 
   @Autowired OrderService orderService;
 
+  @BeforeEach
+  public void beforeEach() {
+    orderItemRepository.deleteAll();
+    orderRepository.deleteAll();
+    productRepository.deleteAll();
+    userRepository.deleteAll();
+  }
+
   @Test
   public void createOrder() {
     var userData = userRepository.save(createUser());
 
     var orderId =
         orderService.createOrder(
-            NewOrder.builder().name("order test").description("order test").build(), userData);
+            NewOrderDto.builder().name("order test").description("order test").build(), userData);
     assertThat(orderId).isGreaterThan(0);
 
     assertThrows(
         OrderException.class,
         () ->
             orderService.createOrder(
-                NewOrder.builder().name("order test").description("order test").build(),
+                NewOrderDto.builder().name("order test").description("order test").build(),
                 createUser()));
 
     var notExistigUser =
@@ -57,7 +66,7 @@ class OrderServiceITTest implements BaseITTest, DataFixture {
         OrderException.class,
         () ->
             orderService.createOrder(
-                NewOrder.builder().name("order test").description("order test").build(),
+                NewOrderDto.builder().name("order test").description("order test").build(),
                 notExistigUser));
   }
 
@@ -65,7 +74,7 @@ class OrderServiceITTest implements BaseITTest, DataFixture {
   public void createOrderException() {
     var userData = userRepository.save(createUser());
     var orderNotValid =
-        NewOrder.builder()
+        NewOrderDto.builder()
             .name(
                 "order-with-name-too-long-afddsafdafdsafdsafdsahuklfdsauhkhfdjskafghjekfghejskagfhseajgfhejafghdsjafghdsajfgdhajfgdhjsagfhdsajfghdsja,fghdsaj,fghdsja,fghdsaj,fhgusladgfaejsgfhejsa,fgheja,fgehaj,fgfgdhjsagfhdsja,fghdsajfghsajfgsa,fghdsaj,gdajsfgds,agfhjas,ghfghds,agfd,jsagfdhdjas,")
             .description("order-description")
