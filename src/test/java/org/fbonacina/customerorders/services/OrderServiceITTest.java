@@ -48,10 +48,10 @@ class OrderServiceITTest implements BaseITTest, DataFixture {
   public void createOrder() {
     var userData = userRepository.save(createUser());
 
-    var orderId =
+    var order =
         orderService.createOrder(
             NewOrderDto.builder().name("order test").description("order test").build(), userData);
-    assertThat(orderId).isGreaterThan(0);
+    assertThat(order.getId()).isGreaterThan(0);
 
     assertThrows(
         OrderException.class,

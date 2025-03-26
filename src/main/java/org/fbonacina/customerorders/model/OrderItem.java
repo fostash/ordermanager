@@ -17,13 +17,11 @@ public class OrderItem {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @ManyToOne
-  @JoinColumn(name = "product_id")
-  private Product product;
+  @Column(name = "product_id")
+  private Long productId;
 
-  @ManyToOne
-  @JoinColumn(name = "order_id")
-  private Order order;
+  @Column(name = "order_id")
+  private Long orderId;
 
   @Column(name = "quantity")
   private Integer quantity;

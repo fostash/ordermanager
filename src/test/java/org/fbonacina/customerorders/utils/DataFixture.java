@@ -47,7 +47,11 @@ public interface DataFixture {
   }
 
   default OrderItem createOrderItem(Product product, Order order, int quantity) {
-    return OrderItem.builder().product(product).order(order).quantity(quantity).build();
+    return OrderItem.builder()
+        .productId(product.getId())
+        .orderId(order.getId())
+        .quantity(quantity)
+        .build();
   }
 
   default String asJsonString(final Object obj) {

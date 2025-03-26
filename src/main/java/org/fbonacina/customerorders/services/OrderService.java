@@ -9,7 +9,9 @@ import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.model.User;
 
 public interface OrderService {
-  Long createOrder(NewOrderDto newOrder, User user);
+  Order createOrder(NewOrderDto newOrder, User user);
+
+  void deleteOrder(Long orderId);
 
   Optional<OrderItem> addProduct(Long userId, Long productId, Long orderId, int quantityRequested);
 
@@ -17,7 +19,7 @@ public interface OrderService {
 
   List<Order> readUserOrders(Long userId);
 
-  Boolean removeProduct(Long orderItemId);
+  void removeProduct(Long orderItemId);
 
   List<Order> searchOrder(LocalDate dateFrom, LocalDate dateTo, String username, String ordername);
 }

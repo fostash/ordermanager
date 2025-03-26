@@ -29,7 +29,8 @@ public class Order {
   @Column(name = "creation_date", nullable = false)
   private LocalDate orderDate;
 
-  @OneToMany(mappedBy = "order")
+  @OneToMany
+  @JoinColumn(name = "order_id")
   private List<OrderItem> items;
 
   @Enumerated
