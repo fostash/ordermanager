@@ -15,11 +15,12 @@ spring:
     password: ${DB_PWD:password}
     driver: org.mariadb.jdbc.Driver
     validateMigrationNaming: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 meilisearch:
-  url: http://localhost:7700
-  apiKey: masterKey
+  url: ${MEILISEARCH_HOST:http://localhost:7700}
+  apiKey: ${MEILISEARCH_MASTER_KEY:masterKey}
   ordersIndex: orders
   ordersTopic: order-events
-redis:
-  host: localhost
-  port: 6379
