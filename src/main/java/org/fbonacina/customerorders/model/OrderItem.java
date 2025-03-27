@@ -1,5 +1,6 @@
 package org.fbonacina.customerorders.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,8 +21,10 @@ public class OrderItem {
   @Column(name = "product_id")
   private Long productId;
 
-  @Column(name = "order_id")
-  private Long orderId;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "order_id", nullable = false)
+  @JsonIgnore
+  private Order order;
 
   @Column(name = "quantity")
   private Integer quantity;

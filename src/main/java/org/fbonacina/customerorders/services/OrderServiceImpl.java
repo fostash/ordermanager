@@ -74,7 +74,7 @@ public class OrderServiceImpl implements OrderService {
                                         .orElseThrow(
                                             () ->
                                                 new OrderException(
-                                                    "product with id %s ot found"
+                                                    "product with id %s not found"
                                                         .formatted(orderItem.getProductId()),
                                                     HttpStatus.NOT_FOUND)))
                             .collect(toList()))
@@ -126,15 +126,17 @@ public class OrderServiceImpl implements OrderService {
               order
                   .getItems()
                   .forEach(
-                      orderItem ->
-                          productRepository
-                              .findById(orderItem.getProductId())
-                              .map(
-                                  product -> {
-                                    product.setStockQuantity(
-                                        product.getStockQuantity() + orderItem.getQuantity());
-                                    return productRepository.save(product);
-                                  }));
+                      orderItem -> {
+                        productRepository
+                            .findById(orderItem.getProductId())
+                            .map(
+                                product -> {
+                                  product.setStockQuantity(
+                                      product.getStockQuantity() + orderItem.getQuantity());
+                                  return productRepository.save(product);
+                                });
+                        orderItemRepository.delete(orderItem);
+                      });
               orderRepository.delete(order);
             });
   }
@@ -152,7 +154,7 @@ public class OrderServiceImpl implements OrderService {
               }
               return orderRepository
                   .findByIdAndUserId(orderId, userId)
-                  .flatMap(
+                  .map(
                       order -> {
                         var res =
                             orderItemRepository
@@ -161,7 +163,7 @@ public class OrderServiceImpl implements OrderService {
                                     () ->
                                         Optional.of(
                                             OrderItem.builder()
-                                                .orderId(order.getId())
+                                                .order(order)
                                                 .productId(product.getId())
                                                 .quantity(0)
                                                 .build()))
@@ -191,9 +193,15 @@ public class OrderServiceImpl implements OrderService {
                                                     .build())
                                         .collect(toList()))
                                 .build();
+                        log.debug("sync order with meilisearch");
                         redisOrderPublisher.publish(orderMessage);
                         return res;
-                      });
+                      })
+                  .orElseThrow(
+                      () ->
+                          new OrderException(
+                              "Order with id %s for user %s not found".formatted(orderId, userId),
+                              HttpStatus.NOT_FOUND));
             });
   }
 
@@ -215,43 +223,40 @@ public class OrderServiceImpl implements OrderService {
                       });
 
               log.debug("delete order item");
+              var order = orderItem.getOrder();
+              order.getItems().removeIf(item -> item.getId().compareTo(orderItemId) == 0);
               orderItemRepository.delete(orderItem);
 
-              orderRepository
-                  .findById(orderItem.getOrderId())
-                  .ifPresent(
-                      order -> {
-                        var orderMessage =
-                            OrderMessage.builder()
-                                .orderId(order.getId())
-                                .orderDescription(order.getDescription())
-                                .orderName(order.getName())
-                                .orderDate(order.getOrderDate().format(DateTimeFormatter.ISO_DATE))
-                                .username(order.getUser().getUsername())
-                                .items(
-                                    order.getItems().stream()
-                                        .map(
-                                            item ->
-                                                productRepository
-                                                    .findById(item.getProductId())
-                                                    .map(
-                                                        product ->
-                                                            OrderItemMessage.builder()
-                                                                .productName(product.getName())
-                                                                .quantity(item.getQuantity())
-                                                                .build())
-                                                    .orElseThrow(
-                                                        () ->
-                                                            new OrderException(
-                                                                "product with id %s not found"
-                                                                    .formatted(item.getProductId()),
-                                                                HttpStatus.NOT_FOUND)))
-                                        .collect(toList()))
-                                .build();
+              var orderMessage =
+                  OrderMessage.builder()
+                      .orderId(order.getId())
+                      .orderDescription(order.getDescription())
+                      .orderName(order.getName())
+                      .orderDate(order.getOrderDate().format(DateTimeFormatter.ISO_DATE))
+                      .username(order.getUser().getUsername())
+                      .items(
+                          order.getItems().stream()
+                              .map(
+                                  item ->
+                                      productRepository
+                                          .findById(item.getProductId())
+                                          .map(
+                                              product ->
+                                                  OrderItemMessage.builder()
+                                                      .productName(product.getName())
+                                                      .quantity(item.getQuantity())
+                                                      .build())
+                                          .orElseThrow(
+                                              () ->
+                                                  new OrderException(
+                                                      "product with id %s not found"
+                                                          .formatted(item.getProductId()),
+                                                      HttpStatus.NOT_FOUND)))
+                              .collect(toList()))
+                      .build();
 
-                        log.debug("sync order with meilisearch");
-                        redisOrderPublisher.publish(orderMessage);
-                      });
+              log.debug("sync order with meilisearch");
+              redisOrderPublisher.publish(orderMessage);
             });
   }
 

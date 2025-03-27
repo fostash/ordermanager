@@ -29,7 +29,6 @@ public class Order {
   @Column(name = "order_date", nullable = false)
   private LocalDate orderDate;
 
-  @OneToMany
-  @JoinColumn(name = "order_id")
+  @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<OrderItem> items;
 }

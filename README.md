@@ -48,6 +48,14 @@ ex:
 * ### add a product to the specified order
   POST /api/v1/orders/{id}/items  
   Body: { "userId": "long", "productId": "long", "quantity": "integer"}
+  ex: `curl --location 'http://localhost:8080/api/v1/orders/1/items' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0MSIsImlhdCI6MTc0MzA3Mjc3MiwiZXhwIjoxNzQzMDc2MzcyLCJyb2xlcyI6WyJVU0VSIl19.nVjm9KO2DfyQKWRIy5FmAmVmO6g0GIcK9TxMNfIxZ0E' \
+--data '{
+    "userId": 2,
+    "productId": 1,
+    "quantity": 2
+}'`
 
 * ### remove the specified product from the order
   DELETE /api/v1/orders/{id}/items/{id}
@@ -58,7 +66,7 @@ ex:
   GET /api/v1/orders/dbsearch
   ex: `curl --location 'http://localhost:8080/api/v1/orders/dbsearch?ordername=test%20user2' \
 --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0MSIsImlhdCI6MTc0MzAxNTc0MSwiZXhwIjoxNzQzMDE5MzQxLCJyb2xlcyI6WyJVU0VSIl19.miF_Q_4AFuadRiMUCWNrrZSSQU9VTZJDTd1cO8B2msw'`
-* 
+
 * ### do a search on meilisearch
   GET /api/v1/orders/meilisearch
   ex: `curl --location 'http://localhost:8080/api/v1/orders/meilisearch?ordername=test%20user2' \
