@@ -42,7 +42,6 @@ public interface DataFixture {
         .user(user)
         .name("%s-%s".formatted(searchBy, uuid))
         .description("order-description-%s".formatted(uuid))
-        .status(OrderStatus.NEW)
         .build();
   }
 

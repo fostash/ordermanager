@@ -8,16 +8,20 @@ import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.fbonacina.customerorders.dto.NewOrderDto;
+import org.fbonacina.customerorders.dto.OrderDto;
+import org.fbonacina.customerorders.dto.OrderProductDto;
 import org.fbonacina.customerorders.exceptions.OrderException;
+import org.fbonacina.customerorders.messages.OrderItemMessage;
+import org.fbonacina.customerorders.messages.OrderMessage;
 import org.fbonacina.customerorders.model.*;
+import org.fbonacina.customerorders.pubsub.RedisOrderPublisher;
 import org.fbonacina.customerorders.repositories.OrderItemRepository;
 import org.fbonacina.customerorders.repositories.OrderRepository;
 import org.fbonacina.customerorders.repositories.OrderSpecification;
 import org.fbonacina.customerorders.repositories.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -29,26 +33,52 @@ public class OrderServiceImpl implements OrderService {
   private final ProductRepository productRepository;
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
-  private final RedisTemplate<String, OrderMessage> orderMessageRedisTemplate;
-  private final String ordersTopic;
+  private final RedisOrderPublisher redisOrderPublisher;
 
   @Autowired
   public OrderServiceImpl(
       OrderRepository orderRepository,
       ProductRepository productRepository,
       OrderItemRepository orderItemRepository,
-      RedisTemplate<String, OrderMessage> orderMessageRedisTemplate,
-      @Value("${meilisearch.ordersTopic}") String ordersTopic) {
+      RedisOrderPublisher redisOrderPublisher) {
     this.orderRepository = orderRepository;
     this.productRepository = productRepository;
     this.orderItemRepository = orderItemRepository;
-    this.orderMessageRedisTemplate = orderMessageRedisTemplate;
-    this.ordersTopic = ordersTopic;
+    this.redisOrderPublisher = redisOrderPublisher;
   }
 
   @Override
-  public Optional<Order> readOrderDetails(Long id) {
-    return orderRepository.findById(id);
+  public Optional<OrderDto> readOrderDetails(Long id) {
+    return orderRepository
+        .findById(id)
+        .map(
+            order ->
+                OrderDto.builder()
+                    .id(order.getId())
+                    .name(order.getName())
+                    .description(order.getDescription())
+                    .orderDate(order.getOrderDate())
+                    .products(
+                        order.getItems().stream()
+                            .map(
+                                orderItem ->
+                                    productRepository
+                                        .findById(orderItem.getProductId())
+                                        .map(
+                                            product ->
+                                                OrderProductDto.builder()
+                                                    .id(product.getId())
+                                                    .name(product.getName())
+                                                    .description(product.getDescription())
+                                                    .build())
+                                        .orElseThrow(
+                                            () ->
+                                                new OrderException(
+                                                    "product with id %s ot found"
+                                                        .formatted(orderItem.getProductId()),
+                                                    HttpStatus.NOT_FOUND)))
+                            .collect(toList()))
+                    .build());
   }
 
   @Override
@@ -73,15 +103,16 @@ public class OrderServiceImpl implements OrderService {
               .orderId(order.getId())
               .orderDescription(order.getDescription())
               .orderName(order.getName())
-              .creationDate(order.getOrderDate().format(DateTimeFormatter.ISO_DATE))
+              .orderDate(order.getOrderDate().format(DateTimeFormatter.ISO_DATE))
               .username(user.getUsername())
               .build();
 
-      orderMessageRedisTemplate.convertAndSend(ordersTopic, orderMessage);
+      log.debug("sync new order with meilisearch");
+      redisOrderPublisher.publish(orderMessage);
 
       return order;
     } catch (Exception e) {
-      throw new OrderException(e.getMessage());
+      throw new OrderException(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -112,62 +143,58 @@ public class OrderServiceImpl implements OrderService {
   @Retryable(backoff = @Backoff(delay = 200))
   public Optional<OrderItem> addProduct(
       Long userId, Long productId, Long orderId, int quantityRequested) {
-    var newOrderItem =
-        productRepository
-            .findById(productId)
-            .flatMap(
-                product -> {
-                  if (product.getStockQuantity() < quantityRequested) {
-                    throw new RuntimeException("product.quantity-not-enough");
-                  }
-                  return orderRepository
-                      .findByIdAndUserId(orderId, userId)
-                      .flatMap(
-                          order -> {
-                            var res =
-                                orderItemRepository
-                                    .findByOrderIdAndProductId(order.getId(), product.getId())
-                                    .or(
-                                        () ->
-                                            Optional.of(
-                                                OrderItem.builder()
-                                                    .orderId(order.getId())
-                                                    .productId(product.getId())
-                                                    .quantity(0)
-                                                    .build()))
-                                    .map(
-                                        orderItem -> {
-                                          product.setStockQuantity(
-                                              product.getStockQuantity() - quantityRequested);
-                                          productRepository.save(product);
-                                          orderItem.setQuantity(
-                                              orderItem.getQuantity() + quantityRequested);
-                                          return orderItemRepository.save(orderItem);
-                                        });
-                            var orderMessage =
-                                OrderMessage.builder()
-                                    .orderId(order.getId())
-                                    .orderDescription(order.getDescription())
-                                    .orderName(order.getName())
-                                    .creationDate(
-                                        order.getOrderDate().format(DateTimeFormatter.ISO_DATE))
-                                    .username(order.getUser().getUsername())
-                                    .items(
-                                        order.getItems().stream()
-                                            .map(
-                                                orderItem ->
-                                                    OrderItemMessage.builder()
-                                                        .productName(product.getName())
-                                                        .quantity(orderItem.getQuantity())
-                                                        .build())
-                                            .collect(toList()))
-                                    .build();
-                            orderMessageRedisTemplate.convertAndSend(ordersTopic, orderMessage);
-                            return res;
-                          });
-                });
-
-    return newOrderItem;
+    return productRepository
+        .findById(productId)
+        .flatMap(
+            product -> {
+              if (product.getStockQuantity() < quantityRequested) {
+                throw new OrderException("product.quantity-not-enough", HttpStatus.CONFLICT);
+              }
+              return orderRepository
+                  .findByIdAndUserId(orderId, userId)
+                  .flatMap(
+                      order -> {
+                        var res =
+                            orderItemRepository
+                                .findByOrderIdAndProductId(order.getId(), product.getId())
+                                .or(
+                                    () ->
+                                        Optional.of(
+                                            OrderItem.builder()
+                                                .orderId(order.getId())
+                                                .productId(product.getId())
+                                                .quantity(0)
+                                                .build()))
+                                .map(
+                                    orderItem -> {
+                                      product.setStockQuantity(
+                                          product.getStockQuantity() - quantityRequested);
+                                      productRepository.save(product);
+                                      orderItem.setQuantity(
+                                          orderItem.getQuantity() + quantityRequested);
+                                      return orderItemRepository.save(orderItem);
+                                    });
+                        var orderMessage =
+                            OrderMessage.builder()
+                                .orderId(order.getId())
+                                .orderDescription(order.getDescription())
+                                .orderName(order.getName())
+                                .orderDate(order.getOrderDate().format(DateTimeFormatter.ISO_DATE))
+                                .username(order.getUser().getUsername())
+                                .items(
+                                    order.getItems().stream()
+                                        .map(
+                                            orderItem ->
+                                                OrderItemMessage.builder()
+                                                    .productName(product.getName())
+                                                    .quantity(orderItem.getQuantity())
+                                                    .build())
+                                        .collect(toList()))
+                                .build();
+                        redisOrderPublisher.publish(orderMessage);
+                        return res;
+                      });
+            });
   }
 
   @Override
@@ -179,15 +206,52 @@ public class OrderServiceImpl implements OrderService {
             orderItem -> {
               productRepository
                   .findById(orderItem.getProductId())
-                  .map(
+                  .ifPresent(
                       product -> {
+                        log.debug("update product quantity");
                         product.setStockQuantity(
                             product.getStockQuantity() + orderItem.getQuantity());
                         productRepository.save(product);
-                        return true;
                       });
 
+              log.debug("delete order item");
               orderItemRepository.delete(orderItem);
+
+              orderRepository
+                  .findById(orderItem.getOrderId())
+                  .ifPresent(
+                      order -> {
+                        var orderMessage =
+                            OrderMessage.builder()
+                                .orderId(order.getId())
+                                .orderDescription(order.getDescription())
+                                .orderName(order.getName())
+                                .orderDate(order.getOrderDate().format(DateTimeFormatter.ISO_DATE))
+                                .username(order.getUser().getUsername())
+                                .items(
+                                    order.getItems().stream()
+                                        .map(
+                                            item ->
+                                                productRepository
+                                                    .findById(item.getProductId())
+                                                    .map(
+                                                        product ->
+                                                            OrderItemMessage.builder()
+                                                                .productName(product.getName())
+                                                                .quantity(item.getQuantity())
+                                                                .build())
+                                                    .orElseThrow(
+                                                        () ->
+                                                            new OrderException(
+                                                                "product with id %s not found"
+                                                                    .formatted(item.getProductId()),
+                                                                HttpStatus.NOT_FOUND)))
+                                        .collect(toList()))
+                                .build();
+
+                        log.debug("sync order with meilisearch");
+                        redisOrderPublisher.publish(orderMessage);
+                      });
             });
   }
 

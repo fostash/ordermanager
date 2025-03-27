@@ -1,4 +1,4 @@
-package org.fbonacina.customerorders.model;
+package org.fbonacina.customerorders.messages;
 
 import java.util.List;
 import lombok.Builder;
@@ -8,6 +8,6 @@ public record OrderMessage(
     Long orderId,
     String orderName,
     String orderDescription,
-    String creationDate,
+    String orderDate,
     String username,
     List<OrderItemMessage> items) {}

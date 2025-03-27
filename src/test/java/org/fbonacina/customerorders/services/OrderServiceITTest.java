@@ -90,7 +90,7 @@ class OrderServiceITTest implements BaseITTest, DataFixture {
     var userData = userRepository.save(createUser());
     var orderData = orderRepository.save(createOrder(userData));
 
-    // BL
+    // test business logic
     var productId = productData.getId();
     var orderId = orderData.getId();
     var quantityRequested = 5;
@@ -146,7 +146,7 @@ class OrderServiceITTest implements BaseITTest, DataFixture {
 
     var ex =
         assertThrows(
-            RuntimeException.class,
+            OrderException.class,
             () -> orderService.addProduct(userData.getId(), productId, orderId, quantityRequested));
 
     assertEquals(ex.getMessage(), "product.quantity-not-enough");

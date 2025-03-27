@@ -21,8 +21,7 @@ CREATE TABLE orders(
     name VARCHAR(255),
     description VARCHAR(4000),
     user_id SMALLINT UNSIGNED NOT NULL,
-    creation_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    order_status VARCHAR(25),
+    order_date DATE NOT NULL DEFAULT CURRENT_DATE,
 
     CONSTRAINT order_user_fk
     FOREIGN KEY (user_id) REFERENCES users (id)

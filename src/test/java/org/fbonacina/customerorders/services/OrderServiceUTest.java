@@ -4,16 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.fbonacina.customerorders.model.Order;
 import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.model.Product;
 import org.fbonacina.customerorders.model.User;
+import org.fbonacina.customerorders.pubsub.RedisOrderPublisher;
 import org.fbonacina.customerorders.repositories.OrderItemRepository;
 import org.fbonacina.customerorders.repositories.OrderRepository;
 import org.fbonacina.customerorders.repositories.ProductRepository;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.RedisTemplate;
 
 class OrderServiceUTest {
 
@@ -22,32 +24,32 @@ class OrderServiceUTest {
     var productRepositoryMock = mock(ProductRepository.class);
     var orderRepositoryMock = mock(OrderRepository.class);
     var orderItemRepositoryMock = mock(OrderItemRepository.class);
-    var orderMessageRedisTemplateMock = mock(RedisTemplate.class);
+    var redisOrderPublisher = mock(RedisOrderPublisher.class);
     var orderService =
         new OrderServiceImpl(
             orderRepositoryMock,
             productRepositoryMock,
             orderItemRepositoryMock,
-            orderMessageRedisTemplateMock,
-            "orders");
+            redisOrderPublisher);
 
     var testProduct = Product.builder().id(1L).name("test product").stockQuantity(10).build();
+    var testItem =
+        OrderItem.builder().id(1L).productId(testProduct.getId()).orderId(1L).quantity(0).build();
     var testOrder =
         Optional.of(
-            Order.builder().id(1L).name("test order").user(User.builder().id(1L).build()).build());
-    var testItem =
-        OrderItem.builder()
-            .id(1L)
-            .productId(testProduct.getId())
-            .orderId(testOrder.get().getId())
-            .quantity(0)
-            .build();
+            Order.builder()
+                .id(1L)
+                .orderDate(LocalDate.now())
+                .name("test order")
+                .items(List.of(testItem))
+                .user(User.builder().id(1L).build())
+                .build());
     when(productRepositoryMock.findById(anyLong())).thenReturn(Optional.of(testProduct));
-    when(orderRepositoryMock.findById(anyLong())).thenReturn(testOrder);
+    when(orderRepositoryMock.findByIdAndUserId(anyLong(), anyLong())).thenReturn(testOrder);
     when(orderItemRepositoryMock.findByOrderIdAndProductId(anyLong(), anyLong()))
         .thenReturn(Optional.of(testItem));
     when(orderItemRepositoryMock.save(any(OrderItem.class))).thenReturn(testItem);
-    when(orderMessageRedisTemplateMock.convertAndSend(anyString(), any())).thenReturn(1L);
+    doNothing().when(redisOrderPublisher).publish(any());
 
     var result = orderService.addProduct(1L, 1L, 1L, 10);
 

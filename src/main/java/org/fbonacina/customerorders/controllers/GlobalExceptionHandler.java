@@ -18,7 +18,7 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(OrderException.class)
   public ResponseEntity<String> handleOrderCreationFailure(OrderException ex) {
-    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+    return ResponseEntity.status(ex.getStatus())
         .body("Error on creating a new order: " + ex.getMessage());
   }
 }

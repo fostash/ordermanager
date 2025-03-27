@@ -26,14 +26,10 @@ public class Order {
   @JoinColumn(name = "user_id")
   private User user;
 
-  @Column(name = "creation_date", nullable = false)
+  @Column(name = "order_date", nullable = false)
   private LocalDate orderDate;
 
   @OneToMany
   @JoinColumn(name = "order_id")
   private List<OrderItem> items;
-
-  @Enumerated
-  @Column(name = "order_status")
-  private OrderStatus status;
 }

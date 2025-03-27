@@ -1,12 +1,13 @@
 package org.fbonacina.customerorders.services;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meilisearch.sdk.Client;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import org.fbonacina.customerorders.model.OrderMessage;
+import org.fbonacina.customerorders.messages.OrderMessage;
 import org.fbonacina.customerorders.utils.BaseITTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,16 +29,19 @@ class MeilisearchServiceTest implements BaseITTest {
   @Value("${meilisearch.ordersIndex}")
   private String ordersIndex;
 
+  @Value("${meilisearch.ordersTopic}")
+  private String ordersTopic;
+
   @Test
   public void testOnMessage() throws Exception {
     OrderMessage orderEvent =
         OrderMessage.builder()
             .orderId(1L)
-            .creationDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
+            .orderDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
             .orderName("test")
             .orderDescription("test")
             .build();
-    redisTemplate.convertAndSend("order-events", orderEvent);
+    redisTemplate.convertAndSend(ordersTopic, orderEvent);
     Thread.sleep(3000);
 
     var result = client.index(ordersIndex).getDocuments(OrderMessage.class);
@@ -47,10 +51,10 @@ class MeilisearchServiceTest implements BaseITTest {
     OrderMessage updatedOrderEvent =
         OrderMessage.builder()
             .orderId(1L)
-            .creationDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
+            .orderDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
             .orderName("test")
             .build();
-    redisTemplate.convertAndSend("order-events", updatedOrderEvent);
+    redisTemplate.convertAndSend(ordersTopic, updatedOrderEvent);
     Thread.sleep(3000);
 
     result = client.index(ordersIndex).getDocuments(OrderMessage.class);
@@ -60,12 +64,12 @@ class MeilisearchServiceTest implements BaseITTest {
     OrderMessage otherOrderEvent =
         OrderMessage.builder()
             .orderId(2L)
-            .creationDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
+            .orderDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
             .orderName("test2")
             .orderDescription("test")
             .build();
 
-    redisTemplate.convertAndSend("order-events", otherOrderEvent);
+    redisTemplate.convertAndSend(ordersTopic, otherOrderEvent);
     Thread.sleep(3000);
 
     result = client.index(ordersIndex).getDocuments(OrderMessage.class);
@@ -77,27 +81,27 @@ class MeilisearchServiceTest implements BaseITTest {
     OrderMessage orderEvent1 =
         OrderMessage.builder()
             .orderId(1L)
-            .creationDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
+            .orderDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
             .orderName("test")
             .orderDescription("test")
             .build();
-    redisTemplate.convertAndSend("order-events", orderEvent1);
+    redisTemplate.convertAndSend(ordersTopic, orderEvent1);
     OrderMessage orderEvent2 =
         OrderMessage.builder()
             .orderId(2L)
-            .creationDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
+            .orderDate(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
             .orderName("test")
             .orderDescription("test")
             .build();
-    redisTemplate.convertAndSend("order-events", orderEvent2);
+    redisTemplate.convertAndSend(ordersTopic, orderEvent2);
     OrderMessage orderEvent3 =
         OrderMessage.builder()
             .orderId(3L)
-            .creationDate(LocalDate.of(2010, 10, 12).format(DateTimeFormatter.ISO_DATE))
+            .orderDate(LocalDate.of(2010, 10, 12).format(DateTimeFormatter.ISO_DATE))
             .orderName("test")
             .orderDescription("test")
             .build();
-    redisTemplate.convertAndSend("order-events", orderEvent3);
+    redisTemplate.convertAndSend(ordersTopic, orderEvent3);
 
     Thread.sleep(3000);
 

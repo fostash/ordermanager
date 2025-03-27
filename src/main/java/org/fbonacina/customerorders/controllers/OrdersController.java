@@ -2,18 +2,23 @@ package org.fbonacina.customerorders.controllers;
 
 import java.time.LocalDate;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.fbonacina.customerorders.dto.AddProductDto;
 import org.fbonacina.customerorders.dto.NewOrderDto;
+import org.fbonacina.customerorders.dto.OrderDto;
+import org.fbonacina.customerorders.exceptions.OrderException;
+import org.fbonacina.customerorders.messages.OrderMessage;
 import org.fbonacina.customerorders.model.Order;
-import org.fbonacina.customerorders.model.OrderMessage;
 import org.fbonacina.customerorders.services.MeilisearchService;
 import org.fbonacina.customerorders.services.OrderService;
 import org.fbonacina.customerorders.services.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/orders")
 public class OrdersController {
@@ -31,7 +36,9 @@ public class OrdersController {
 
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{id}")
-  public ResponseEntity<Order> retrieveOrder(@PathVariable Long id) {
+  public ResponseEntity<OrderDto> retrieveOrder(@PathVariable Long id) {
+
+    log.debug("retrieve order details for order id {}", id);
     return orderService
         .readOrderDetails(id)
         .map(ResponseEntity::ok)
@@ -41,6 +48,7 @@ public class OrdersController {
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/user/{userId}")
   public ResponseEntity<?> readUserOrder(@PathVariable Long userId) {
+    log.debug("retrieve orders for user with id {}", userId);
     try {
       return ResponseEntity.ok().body(orderService.readUserOrders(userId));
     } catch (RuntimeException e) {
@@ -54,6 +62,7 @@ public class OrdersController {
   public ResponseEntity<String> createOrder(
       @PathVariable Long userId, @RequestBody NewOrderDto newOrder) {
 
+    log.debug("create new order for user with id {}", userId);
     return userService
         .findById(userId)
         .map(user -> orderService.createOrder(newOrder, user))
@@ -65,24 +74,46 @@ public class OrdersController {
                             .buildAndExpand(order.getId())
                             .toUri())
                     .<String>build())
-        .orElse(ResponseEntity.notFound().build());
+        .orElseThrow(() -> new OrderException("User not found", HttpStatus.NOT_FOUND));
   }
 
   @PreAuthorize("isAuthenticated()")
+  @DeleteMapping("/{orderId}")
   public ResponseEntity<?> deleteOrder(@PathVariable Long orderId) {
-    orderService.deleteOrder(orderId);
-    return ResponseEntity.noContent().build();
+    try {
+      orderService.deleteOrder(orderId);
+      return ResponseEntity.noContent().build();
+    } catch (RuntimeException e) {
+      throw new OrderException(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @PreAuthorize("isAuthenticated()")
-  @GetMapping("/search")
-  public List<OrderMessage> searchOrder(
+  @GetMapping("/dbsearch")
+  public List<Order> dbsearchOrder(
       @RequestParam(value = "dateFrom", required = false) LocalDate dateFrom,
       @RequestParam(value = "dateTo", required = false) LocalDate dateTo,
       @RequestParam(value = "username", required = false) String username,
       @RequestParam(value = "ordername", required = false) String ordername) {
-    return meilisearchService.search(dateFrom, dateTo, username, ordername);
-    // return orderService.searchOrder(dateFrom, dateTo, username, ordername);
+    try {
+      return orderService.searchOrder(dateFrom, dateTo, username, ordername);
+    } catch (RuntimeException e) {
+      throw new OrderException(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PreAuthorize("isAuthenticated()")
+  @GetMapping("/meilisearch")
+  public List<OrderMessage> meilisearchOrder(
+      @RequestParam(value = "dateFrom", required = false) LocalDate dateFrom,
+      @RequestParam(value = "dateTo", required = false) LocalDate dateTo,
+      @RequestParam(value = "username", required = false) String username,
+      @RequestParam(value = "ordername", required = false) String ordername) {
+    try {
+      return meilisearchService.search(dateFrom, dateTo, username, ordername);
+    } catch (RuntimeException e) {
+      throw new OrderException(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @PreAuthorize("isAuthenticated()")
@@ -92,7 +123,11 @@ public class OrdersController {
     return orderService
         .addProduct(product.userId(), product.productId(), orderId, product.quantity())
         .map(orderItem -> ResponseEntity.accepted().body(orderItem))
-        .orElse(ResponseEntity.notFound().build());
+        .orElseThrow(
+            () ->
+                new OrderException(
+                    "product with id %s not found".formatted(product.productId()),
+                    HttpStatus.NOT_FOUND));
   }
 
   @PreAuthorize("isAuthenticated()")

@@ -1,8 +1,15 @@
 package org.fbonacina.customerorders.exceptions;
 
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+@Getter
 public class OrderException extends RuntimeException {
 
-  public OrderException(String message) {
+  private final HttpStatus status;
+
+  public OrderException(String message, HttpStatus status) {
     super(message);
+    this.status = status;
   }
 }

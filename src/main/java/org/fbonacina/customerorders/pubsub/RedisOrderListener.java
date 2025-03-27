@@ -23,7 +23,6 @@ public class RedisOrderListener implements MessageListener {
       meilisearchService.indexOrder(message.toString());
     } catch (JsonProcessingException e) {
       log.error("error on indexing order to meilisearch. message: {}", message);
-      // throw new RuntimeException(e);
     }
   }
 }

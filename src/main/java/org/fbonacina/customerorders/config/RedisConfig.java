@@ -2,7 +2,7 @@ package org.fbonacina.customerorders.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.fbonacina.customerorders.model.OrderMessage;
+import org.fbonacina.customerorders.messages.OrderMessage;
 import org.fbonacina.customerorders.pubsub.OrderPublisher;
 import org.fbonacina.customerorders.pubsub.RedisOrderListener;
 import org.fbonacina.customerorders.pubsub.RedisOrderPublisher;

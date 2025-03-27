@@ -1,4 +1,4 @@
-package org.fbonacina.customerorders.model;
+package org.fbonacina.customerorders.messages;
 
 import lombok.Builder;
 

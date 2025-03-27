@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.fbonacina.customerorders.dto.NewOrderDto;
+import org.fbonacina.customerorders.dto.OrderDto;
 import org.fbonacina.customerorders.model.Order;
 import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.model.User;
@@ -15,7 +16,7 @@ public interface OrderService {
 
   Optional<OrderItem> addProduct(Long userId, Long productId, Long orderId, int quantityRequested);
 
-  Optional<Order> readOrderDetails(Long id);
+  Optional<OrderDto> readOrderDetails(Long id);
 
   List<Order> readUserOrders(Long userId);
 

@@ -3,8 +3,7 @@ package org.fbonacina.customerorders.controllers;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,6 +13,8 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.fbonacina.customerorders.dto.AddProductDto;
 import org.fbonacina.customerorders.dto.NewOrderDto;
+import org.fbonacina.customerorders.dto.OrderDto;
+import org.fbonacina.customerorders.exceptions.OrderException;
 import org.fbonacina.customerorders.model.Order;
 import org.fbonacina.customerorders.model.OrderItem;
 import org.fbonacina.customerorders.services.JwtService;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -51,7 +53,8 @@ class OrdersControllerTest implements BaseITTest, DataFixture {
     this.mockMvc.perform(get("/api/v1/orders/1")).andExpect(status().isUnauthorized());
 
     when(orderService.readOrderDetails(anyLong()))
-        .thenReturn(Optional.of(Order.builder().id(1L).name("test").description("test").build()));
+        .thenReturn(
+            Optional.of(OrderDto.builder().id(1L).name("test").description("test").build()));
 
     this.mockMvc
         .perform(
@@ -109,6 +112,49 @@ class OrdersControllerTest implements BaseITTest, DataFixture {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(orderData)))
         .andExpect(status().isCreated());
+
+    when(userService.findById(anyLong())).thenReturn(Optional.of(user));
+    doThrow(new OrderException("generic error", HttpStatus.INTERNAL_SERVER_ERROR))
+        .when(orderService)
+        .createOrder(orderData, user);
+
+    this.mockMvc
+        .perform(
+            put("/api/v1/orders/user/1")
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(orderData)))
+        .andExpect(status().isInternalServerError());
+
+    when(userService.findById(anyLong())).thenReturn(Optional.empty());
+
+    this.mockMvc
+        .perform(
+            put("/api/v1/orders/user/1")
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(orderData)))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void deleteOrderTest() throws Exception {
+
+    doNothing().when(orderService).deleteOrder(1L);
+
+    this.mockMvc
+        .perform(
+            delete("/api/v1/orders/1")
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER")))
+        .andExpect(status().isNoContent());
+
+    doThrow(RuntimeException.class).when(orderService).deleteOrder(1L);
+
+    this.mockMvc
+        .perform(
+            delete("/api/v1/orders/1")
+                .header("Authorization", "Bearer " + jwtService.generateToken("test", "USER")))
+        .andExpect(status().isInternalServerError());
   }
 
   @Test
